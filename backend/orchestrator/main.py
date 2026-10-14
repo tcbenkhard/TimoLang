@@ -91,29 +91,17 @@ def inspect_key_path(value: str) -> tuple[Path, bool]:
     return path, path.is_file() and supported
 
 
-def choose_ssh_private_key() -> str | None:
-    try:
-        import tkinter as tk
-        from tkinter import filedialog
-    except ImportError as error:
-        raise RuntimeError("Native file browsing requires Python tkinter") from error
-
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        root.attributes("-topmost", True)
-        selected = filedialog.askopenfilename(
-            parent=root,
-            title="Select an OpenSSH private key",
-            initialdir=str(Path.home()),
-            filetypes=[
-                ("OpenSSH private keys", "id_* *.pem *.key *.priv"),
-                ("Extensionless private keys", "*"),
-            ],
-        )
-        return selected or None
-    finally:
-        root.destroy()
+def list_ssh_private_keys(directory: Path) -> list[str]:
+    if not directory.exists():
+        return []
+    excluded = {"config", "known_hosts", "known_hosts.old", "authorized_keys"}
+    return sorted(
+        str(path)
+        for candidate in directory.iterdir()
+        if candidate.name not in excluded
+        for path, available in [inspect_key_path(str(candidate))]
+        if available
+    )
 
 
 def require_auth(
@@ -154,29 +142,20 @@ async def list_github_accounts(request: Request) -> list[GitHubAccountView]:
                 account=row["account"],
                 ssh_key_path=row["ssh_key_path"],
                 key_available=available,
+                pat_configured=row["pat_configured"],
+                username=row["username"],
             )
         )
     return result
 
 
 @app.post("/api/settings/browse-ssh-key", dependencies=[Depends(require_auth)])
-async def browse_ssh_key() -> dict[str, str | None]:
+async def browse_ssh_key() -> dict[str, list[str]]:
     try:
-        selected = await asyncio.to_thread(choose_ssh_private_key)
-    except RuntimeError as error:
-        raise HTTPException(status_code=501, detail=str(error)) from error
-    if selected:
-        path, available = await asyncio.to_thread(inspect_key_path, selected)
-        if not available:
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    "Select an OpenSSH private key without an extension or with "
-                    ".pem, .key, or .priv"
-                ),
-            )
-        return {"path": str(path)}
-    return {"path": None}
+        paths = await asyncio.to_thread(list_ssh_private_keys, Path.home() / ".ssh")
+    except OSError as error:
+        raise HTTPException(status_code=503, detail="Unable to list SSH key directory") from error
+    return {"paths": paths}
 
 
 @app.put("/api/settings/github-accounts/{account}", dependencies=[Depends(require_auth)])
@@ -185,8 +164,13 @@ async def configure_github_account(
 ) -> GitHubAccountView:
     if account.lower() != body.account.lower():
         raise HTTPException(status_code=400, detail="Account path and body must match")
+    token = body.pat_token.get_secret_value() if body.pat_token else None
+    if token and not body.username:
+        raise HTTPException(status_code=422, detail="GitHub username is required when using a PAT")
+    if token and any(character.isspace() for character in token):
+        raise HTTPException(status_code=422, detail="PAT must not contain whitespace")
     key_path, available = await asyncio.to_thread(inspect_key_path, body.ssh_key_path)
-    if not available:
+    if not token and not available:
         raise HTTPException(
             status_code=422,
             detail=(
@@ -195,9 +179,15 @@ async def configure_github_account(
             ),
         )
     async with request.app.state.pool.connection() as connection:
-        await WorkflowRepository(connection).upsert_github_account(account, str(key_path))
+        await WorkflowRepository(connection).upsert_github_account(
+            account, str(key_path) if body.ssh_key_path else "", token, body.username
+        )
     return GitHubAccountView(
-        account=account.lower(), ssh_key_path=str(key_path), key_available=True
+        account=account.lower(),
+        ssh_key_path=str(key_path) if body.ssh_key_path else "",
+        key_available=available,
+        pat_configured=bool(token),
+        username=body.username,
     )
 
 
@@ -220,8 +210,7 @@ async def get_design_provider(request: Request) -> DesignProviderView:
     return DesignProviderView(
         provider=DesignProviderName(selected),
         availability={
-            provider: shutil.which(provider.command) is not None
-            for provider in DesignProviderName
+            provider: shutil.which(provider.command) is not None for provider in DesignProviderName
         },
     )
 
@@ -230,16 +219,13 @@ async def get_design_provider(request: Request) -> DesignProviderView:
     "/api/settings/design-provider",
     dependencies=[Depends(require_auth)],
 )
-async def set_design_provider(
-    body: DesignProviderConfig, request: Request
-) -> DesignProviderView:
+async def set_design_provider(body: DesignProviderConfig, request: Request) -> DesignProviderView:
     async with request.app.state.pool.connection() as connection:
         await WorkflowRepository(connection).set_setting("design_provider", body.provider)
     return DesignProviderView(
         provider=body.provider,
         availability={
-            provider: shutil.which(provider.command) is not None
-            for provider in DesignProviderName
+            provider: shutil.which(provider.command) is not None for provider in DesignProviderName
         },
     )
 

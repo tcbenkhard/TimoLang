@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
+from pydantic import BaseModel, Field, HttpUrl, SecretStr, field_validator, model_validator
 
 
 def utc_now() -> datetime:
@@ -102,11 +102,17 @@ class WorkflowCreate(BaseModel):
 
 class GitHubAccountConfig(BaseModel):
     account: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9-]+$")
-    ssh_key_path: str = Field(min_length=1, max_length=2_000)
+    ssh_key_path: str = Field(default="", max_length=2_000)
+    pat_token: SecretStr | None = Field(default=None, min_length=1, max_length=2_000)
+    username: str = Field(default="", max_length=100, pattern=r"^[A-Za-z0-9-]*$")
 
 
-class GitHubAccountView(GitHubAccountConfig):
+class GitHubAccountView(BaseModel):
+    account: str
+    ssh_key_path: str
     key_available: bool
+    pat_configured: bool = False
+    username: str = ""
 
 
 class DesignProviderConfig(BaseModel):

@@ -40,12 +40,12 @@ export const api = {
   retry: (id: string) => request(`/api/workflows/${id}/retry`, { method: 'POST' }),
   remove: (id: string) => request<void>(`/api/workflows/${id}`, { method: 'DELETE' }),
   githubAccounts: () => request<GitHubAccount[]>('/api/settings/github-accounts'),
-  browseSshKey: () => request<{ path: string | null }>('/api/settings/browse-ssh-key', {
+  browseSshKey: () => request<{ paths: string[] }>('/api/settings/browse-ssh-key', {
     method: 'POST',
   }),
-  saveGithubAccount: (account: string, sshKeyPath: string) =>
+  saveGithubAccount: (account: string, sshKeyPath: string, patToken: string, username: string) =>
     request<GitHubAccount>(`/api/settings/github-accounts/${encodeURIComponent(account)}`, {
-      method: 'PUT', body: JSON.stringify({ account, ssh_key_path: sshKeyPath }),
+      method: 'PUT', body: JSON.stringify({ account, ssh_key_path: sshKeyPath, pat_token: patToken || null, username }),
     }),
   deleteGithubAccount: (account: string) =>
     request(`/api/settings/github-accounts/${encodeURIComponent(account)}`, { method: 'DELETE' }),

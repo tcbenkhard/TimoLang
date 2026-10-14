@@ -30,13 +30,19 @@ The backend image includes Codex and Claude Code. Authenticate the provider you 
 ```bash
 docker compose exec backend codex login
 # or
-docker compose exec backend claude
+docker compose exec backend claude auth login
+docker compose exec backend claude auth status
 ```
+
+Claude's status must report `loggedIn: true` before generating a design. Compose sets
+`CLAUDE_CONFIG_DIR=/root/.claude` so its configuration and credentials both live in the persistent
+`claude-auth` volume. A login on your host does not authenticate the backend container. If generation
+reports `Not logged in`, run the login command above and retry the workflow.
 
 Set `SSH_KEY_DIR` in `.env` to the host directory containing the private keys configured in Relay.
 Inside the backend container those files are available under `/root/.ssh`, so configure an account
-with a path such as `/root/.ssh/id_ed25519`. The native SSH-key file picker is unavailable in the
-container; enter the container path manually. The development bearer token is represented in
+with a path such as `/root/.ssh/id_ed25519`. **Browse** lists the mounted keys in the web page;
+you can also enter the container path manually. The development bearer token is represented in
 `.env.example`; replace it before using the application outside a single-user local machine.
 
 For a credential-free test, select **Test issue** in the start form and enter an identifier such as
@@ -74,6 +80,15 @@ You can override discovery by setting `CODEX_CODE_MODE_HOST_PATH` to
 
 ## GitHub authentication status
 
+GitHub accounts can use a personal access token (PAT) instead of an SSH key. In **Settings**, enter
+the repository owner or organization, your personal GitHub username, and PAT, then save. The username
+and PAT are used together for HTTPS authentication. A PAT takes priority over SSH and uses HTTPS for both cloning and
+pushing, including existing checkouts. Leave the token blank and provide an SSH key when saving to
+switch back to SSH. Saving replaces the account's credentials. Give the token access to the relevant
+repositories and permission to push changes. PATs are stored in the backend PostgreSQL database;
+account responses show only whether a PAT is configured. Tokens are passed only to Git subprocesses,
+never embedded in clone URLs, repository configuration, workflow state, or prompts.
+
 Repository analysis connects to GitHub over SSH. Open **Settings → GitHub accounts** and map an owner
 such as `tcbenkhard` to a private-key path such as `/Users/me/.ssh/id_ed25519_tcbenkhard`. Given
 `https://github.com/tcbenkhard/advent-of-code-2020`, the owner selects that key. The application stores
@@ -81,8 +96,9 @@ only the path and passes it to the isolated Git process with `IdentitiesOnly=yes
 enter graph state, prompts, or audit logs. GitHub host keys use a workspace-specific `known_hosts` file
 with trust-on-first-use (`StrictHostKeyChecking=accept-new`).
 
-The Settings form includes a native **Browse** button. It opens in the backend user's home directory on
-macOS and Windows and filters for extensionless OpenSSH keys plus `.pem`, `.key`, and `.priv`. Public
+The Settings form includes a **Browse** button that lists files from the backend user's `.ssh`
+directory, including Docker-mounted keys. It requires no desktop display or tkinter and filters
+for extensionless OpenSSH keys plus `.pem`, `.key`, and `.priv`. Public
 `.pub` files and PuTTY `.ppk` files are rejected because they cannot be used directly by OpenSSH.
 
 The checkout is a shallow clone under `workspaces/<workflow-id>/repository` and is inspected without

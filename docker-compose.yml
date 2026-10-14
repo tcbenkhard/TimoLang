@@ -27,6 +27,8 @@ services:
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-replace-me}
       ARTIFACT_ROOT: /app/artifacts
       WORKSPACE_ROOT: /app/workspaces
+      # Keep Claude's .claude.json and credentials in the persistent auth volume.
+      CLAUDE_CONFIG_DIR: /root/.claude
       DESIGN_GENERATION_TIMEOUT_SECONDS: ${DESIGN_GENERATION_TIMEOUT_SECONDS:-300}
       IMPLEMENTATION_TIMEOUT_SECONDS: ${IMPLEMENTATION_TIMEOUT_SECONDS:-1800}
     ports:

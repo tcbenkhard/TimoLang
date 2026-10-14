@@ -71,6 +71,8 @@ CREATE TABLE IF NOT EXISTS application_settings (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE workflows ADD COLUMN IF NOT EXISTS initial_input JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE github_accounts ADD COLUMN IF NOT EXISTS pat_token TEXT;
+ALTER TABLE github_accounts ADD COLUMN IF NOT EXISTS username TEXT NOT NULL DEFAULT '';
 """
 
 
@@ -189,19 +191,29 @@ class WorkflowRepository:
         )
         await self.connection.commit()
 
-    async def upsert_github_account(self, account: str, ssh_key_path: str) -> None:
+    async def upsert_github_account(
+        self, account: str, ssh_key_path: str, pat_token: str | None = None, username: str = ""
+    ) -> None:
         await self.connection.execute(
-            """INSERT INTO github_accounts(account, ssh_key_path)
-               VALUES (%s, %s)
+            """INSERT INTO github_accounts(account, ssh_key_path, pat_token, username)
+               VALUES (%s, %s, %s, %s)
                ON CONFLICT (account) DO UPDATE
-               SET ssh_key_path=EXCLUDED.ssh_key_path, updated_at=now()""",
-            (account.lower(), ssh_key_path),
+               SET ssh_key_path=EXCLUDED.ssh_key_path, pat_token=EXCLUDED.pat_token,
+                   username=EXCLUDED.username, updated_at=now()""",
+            (account.lower(), ssh_key_path, pat_token, username),
         )
         await self.connection.commit()
 
     async def list_github_accounts(self) -> Sequence[dict[str, Any]]:
         return await self._fetchall(
-            "SELECT account, ssh_key_path FROM github_accounts ORDER BY account"
+            "SELECT account, ssh_key_path, username, (pat_token IS NOT NULL) AS pat_configured "
+            "FROM github_accounts ORDER BY account"
+        )
+
+    async def get_github_credentials(self, account: str) -> dict[str, Any] | None:
+        return await self._fetchone(
+            "SELECT ssh_key_path, pat_token, username FROM github_accounts WHERE account=%s",
+            (account.lower(),),
         )
 
     async def get_github_key_path(self, account: str) -> str | None:

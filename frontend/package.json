@@ -11,9 +11,11 @@
   "dependencies": {
     "@vitejs/plugin-react": "latest",
     "lucide-react": "latest",
+    "mermaid": "^11.17.2",
     "react": "latest",
     "react-dom": "latest",
-    "react-markdown": "latest"
+    "react-markdown": "latest",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@eslint/js": "latest",
@@ -28,4 +30,3 @@
     "vite": "latest"
   }
 }
-

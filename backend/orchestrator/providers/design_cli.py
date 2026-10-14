@@ -91,8 +91,6 @@ class CliDesignProvider:
                 "json",
                 "--permission-mode",
                 "plan",
-                "--max-turns",
-                "12",
             ],
             prompt,
             cwd,
@@ -100,6 +98,12 @@ class CliDesignProvider:
         )
         try:
             payload = json.loads(stdout)
+            if not isinstance(payload, dict):
+                raise TypeError("Expected a JSON object")
+            if payload.get("is_error"):
+                raise DesignGenerationError(
+                    f"Claude design generation failed: {self._diagnostic('', stdout)}"
+                )
             result = payload["result"]
         except (json.JSONDecodeError, KeyError, TypeError) as error:
             raise DesignGenerationError("Claude returned an invalid JSON response") from error
@@ -138,12 +142,31 @@ class CliDesignProvider:
                 f"Unable to start the {provider.label} CLI: {error}"
             ) from error
         if result.returncode:
-            diagnostic = result.stderr.strip()[-2_000:]
+            diagnostic = self._diagnostic(result.stderr, result.stdout)
             raise DesignGenerationError(
                 f"{provider.label} CLI exited with code {result.returncode}: "
                 f"{diagnostic or 'no diagnostic was returned'}"
             )
         return result.stdout
+
+    @staticmethod
+    def _diagnostic(stderr: str, stdout: str) -> str:
+        if stderr.strip():
+            return stderr.strip()[-2_000:]
+        diagnostic = stdout.strip()
+        try:
+            payload = json.loads(diagnostic)
+        except json.JSONDecodeError:
+            pass
+        else:
+            if isinstance(payload, dict):
+                result = payload.get("result")
+                errors = payload.get("errors")
+                if isinstance(result, str) and result.strip():
+                    diagnostic = result.strip()
+                elif isinstance(errors, list) and errors:
+                    diagnostic = "; ".join(str(error) for error in errors)
+        return diagnostic[-2_000:]
 
     @staticmethod
     def _prompt(state: dict[str, Any], version: int) -> str:

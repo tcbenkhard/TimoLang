@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import re
 import subprocess
 from pathlib import Path
@@ -9,6 +8,7 @@ from typing import Any
 
 from psycopg_pool import AsyncConnectionPool
 
+from orchestrator.providers.git_auth import git_environment, redact_git_diagnostic
 from orchestrator.repository import WorkflowRepository
 
 GITHUB_REPOSITORY = re.compile(
@@ -52,22 +52,26 @@ class GitHubRepositoryAccess:
         account = match.group("account").lower()
         repository = match.group("repository")
         async with self.pool.connection() as connection:
-            key_path_value = await WorkflowRepository(connection).get_github_key_path(account)
-        if not key_path_value:
-            raise RepositoryAccessError(f"No SSH key is configured for GitHub account '{account}'")
-
-        key_path, available = await asyncio.to_thread(inspect_key_path, key_path_value)
-        if not available:
-            raise RepositoryAccessError(f"Configured SSH key does not exist: {key_path}")
+            credentials = await WorkflowRepository(connection).get_github_credentials(account)
+        if not credentials:
+            raise RepositoryAccessError(f"No credentials configured for GitHub account '{account}'")
+        try:
+            env = await asyncio.to_thread(git_environment, credentials, self.workspace_root)
+        except ValueError as error:
+            raise RepositoryAccessError(str(error)) from error
 
         workflow_root = (self.workspace_root / state["workflow_id"]).resolve()
         if self.workspace_root not in workflow_root.parents:
             raise RepositoryAccessError("Invalid workflow workspace path")
         checkout = workflow_root / "repository"
         checkout.parent.mkdir(parents=True, exist_ok=True)
-        clone_url = f"git@github.com:{account}/{repository}.git"
+        clone_url = (
+            f"https://github.com/{account}/{repository}.git"
+            if credentials.get("pat_token")
+            else f"git@github.com:{account}/{repository}.git"
+        )
         if not (checkout / ".git").is_dir():
-            await self._git_clone(clone_url, checkout, key_path)
+            await self._git_clone(clone_url, checkout, env)
 
         analysis = await asyncio.to_thread(self._inspect, checkout)
         return {
@@ -82,15 +86,8 @@ class GitHubRepositoryAccess:
             "phase": "analyzing",
         }
 
-    async def _git_clone(self, clone_url: str, checkout: Path, key_path: Path) -> None:
-        known_hosts = self.workspace_root / "known_hosts"
+    async def _git_clone(self, clone_url: str, checkout: Path, env: dict[str, str]) -> None:
         self.workspace_root.mkdir(parents=True, exist_ok=True)
-        env = os.environ.copy()
-        env["GIT_TERMINAL_PROMPT"] = "0"
-        env["GIT_SSH_COMMAND"] = (
-            f'ssh -i "{key_path}" -o IdentitiesOnly=yes '
-            f'-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="{known_hosts}"'
-        )
         result = await asyncio.to_thread(
             subprocess.run,
             ["git", "clone", "--depth", "1", "--", clone_url, str(checkout)],
@@ -99,7 +96,7 @@ class GitHubRepositoryAccess:
             env=env,
         )
         if result.returncode:
-            message = result.stderr.decode(errors="replace").strip()
+            message = redact_git_diagnostic(result.stderr.decode(errors="replace").strip(), env)
             raise RepositoryAccessError(f"Git clone failed: {message[-2_000:]}")
 
     @staticmethod

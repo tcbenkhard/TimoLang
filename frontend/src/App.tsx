@@ -4,6 +4,7 @@ import {
   Circle, ExternalLink, FolderOpen, GitPullRequest, Hexagon, KeyRound, LoaderCircle, Play, Settings2, Trash2, X,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
+import DesignMarkdown from './DesignMarkdown'
 import { api } from './api'
 import type { DesignProvider, DesignProviderSettings, GitHubAccount, Phase, Workflow } from './types'
 
@@ -119,6 +120,9 @@ function Settings({ onBack }: { onBack: () => void }) {
   const [accounts, setAccounts] = useState<GitHubAccount[]>([])
   const [account, setAccount] = useState('')
   const [keyPath, setKeyPath] = useState('')
+  const [patToken, setPatToken] = useState('')
+  const [githubUsername, setGithubUsername] = useState('')
+  const [keyChoices, setKeyChoices] = useState<string[] | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [designProvider, setDesignProvider] = useState<DesignProviderSettings | null>(null)
@@ -148,7 +152,7 @@ function Settings({ onBack }: { onBack: () => void }) {
 
   async function save(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setError('')
-    try { await api.saveGithubAccount(account, keyPath); setAccount(''); setKeyPath(''); await loadAccounts() }
+    try { await api.saveGithubAccount(account, keyPath, patToken, githubUsername); setAccount(''); setKeyPath(''); setPatToken(''); setGithubUsername(''); await loadAccounts() }
     catch (problem) { setError(problem instanceof Error ? problem.message : 'Unable to save account') }
     finally { setBusy(false) }
   }
@@ -163,7 +167,7 @@ function Settings({ onBack }: { onBack: () => void }) {
     setBusy(true); setError('')
     try {
       const result = await api.browseSshKey()
-      if (result.path) setKeyPath(result.path)
+      setKeyChoices(result.paths)
     } catch (problem) { setError(problem instanceof Error ? problem.message : 'Unable to open file browser') }
     finally { setBusy(false) }
   }
@@ -190,17 +194,28 @@ function Settings({ onBack }: { onBack: () => void }) {
     <section className="card settings-card">
       <h2>Add or update account</h2>
       <form onSubmit={save} className="settings-form">
-        <label>GitHub account<input required pattern="[A-Za-z0-9-]+" value={account} onChange={event => setAccount(event.target.value)} placeholder="tcbenkhard" /></label>
-        <label>SSH private key path<div className="key-path-input"><input required value={keyPath} onChange={event => setKeyPath(event.target.value)} placeholder="/Users/me/.ssh/id_ed25519_tcbenkhard" /><button type="button" disabled={busy} onClick={() => void browse()} title="Browse for private key"><FolderOpen size={16} /> Browse</button></div></label>
+        <label>Repository owner or organization<input required pattern="[A-Za-z0-9-]+" value={account} onChange={event => setAccount(event.target.value)} placeholder="inqdo-hitrail" /></label>
+        <label>GitHub username<input required={!!patToken} pattern="[A-Za-z0-9-]+" autoComplete="username" value={githubUsername} onChange={event => setGithubUsername(event.target.value)} placeholder="Username of the PAT owner" /></label>
+        <label>SSH private key path<div className="key-path-input"><input required={!patToken} value={keyPath} onChange={event => setKeyPath(event.target.value)} placeholder="/Users/me/.ssh/id_ed25519_tcbenkhard" /><button type="button" disabled={busy} onClick={() => void browse()} title="Browse for private key"><FolderOpen size={16} /> Browse</button></div></label>
+        <label>Personal access token (optional)<input type="password" autoComplete="new-password" value={patToken} onChange={event => setPatToken(event.target.value)} placeholder="GitHub PAT" /></label>
         <button className="primary" disabled={busy}>Save account</button>
       </form>
-      <p className="security-note">The chooser starts in your home directory. OpenSSH keys without an extension and .pem, .key, or .priv files are accepted; .pub and .ppk files are excluded. Only the path is stored.</p>
+      <p className="security-note">A PAT uses HTTPS for cloning and pushing and takes priority over SSH. Tokens are stored in the backend database and never displayed again. Saving an account replaces its credentials; leave the token empty and provide a key to switch to SSH.</p>
+      {keyChoices !== null && <div className="ssh-key-choices">
+        <label htmlFor="ssh-key-choice">Select an SSH private key</label>
+        {keyChoices.length > 0 ? <select id="ssh-key-choice" value={keyChoices.includes(keyPath) ? keyPath : ''}
+          onChange={event => setKeyPath(event.target.value)}>
+          <option value="" disabled>Choose a key…</option>
+          {keyChoices.map(path => <option key={path} value={path}>{path}</option>)}
+        </select> : <p className="security-note">No supported keys found in the backend’s .ssh directory. Mount your SSH directory with SSH_KEY_DIR when using Docker, or enter an accessible path above.</p>}
+      </div>}
+      <p className="security-note">Browse lists files in the backend’s .ssh directory. OpenSSH keys without an extension and .pem, .key, or .priv files are accepted; .pub and .ppk files are excluded. Only the path is stored.</p>
       {error && <p className="form-error">{error}</p>}
     </section>
     <section className="account-list">
       {accounts.map(item => <div className="card account-row" key={item.account}>
-        <div><strong>{item.account}</strong><code>{item.ssh_key_path}</code></div>
-        <div className="account-actions"><StatusPill phase={item.key_available ? 'succeeded' : 'failed'} />
+        <div><strong>{item.account}</strong><code>{item.pat_configured ? `HTTPS · ${item.username || 'username not configured'} · PAT configured` : item.ssh_key_path}</code></div>
+        <div className="account-actions"><StatusPill phase={item.pat_configured || item.key_available ? 'succeeded' : 'failed'} />
           <button disabled={busy} onClick={() => void remove(item.account)} title="Remove account"><Trash2 size={16} /></button></div>
       </div>)}
       {accounts.length === 0 && <div className="empty"><p>No GitHub accounts configured.</p></div>}
@@ -292,7 +307,7 @@ function Detail({ workflow, onBack, onRestart, onRetry, onDelete, refresh }: {
           <div className="approval-banner"><Clock3 size={20} /><div><strong>Your review is required</strong>
             <span>Development cannot begin until this design is explicitly approved.</span></div></div>
           <div className="document"><div className="document-head"><span>Design</span><b>Version {design.version}</b></div>
-            <ReactMarkdown>{design.markdown}</ReactMarkdown></div>
+            <DesignMarkdown>{design.markdown}</DesignMarkdown></div>
           <textarea value={feedback} onChange={e => setFeedback(e.target.value)}
             placeholder="Feedback for a revision (required when requesting changes)" />
           <div className="actions">
@@ -304,7 +319,7 @@ function Detail({ workflow, onBack, onRestart, onRetry, onDelete, refresh }: {
 
         {workflow.phase !== 'awaiting_design_approval' && design && <details className="card design-disclosure">
           <summary><span>{workflow.approved_design_version ? 'Approved design' : 'Design'}</span><b>Version {design.version}</b></summary>
-          <div className="document"><ReactMarkdown>{design.markdown}</ReactMarkdown></div>
+          <div className="document"><DesignMarkdown>{design.markdown}</DesignMarkdown></div>
         </details>}
 
         {typeof state.review_markdown === 'string' && <details className="card design-disclosure">

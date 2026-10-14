@@ -4,7 +4,7 @@ import hmac
 import pytest
 from orchestrator.config import Settings
 from orchestrator.domain import WorkflowCreate
-from orchestrator.main import inspect_key_path
+from orchestrator.main import inspect_key_path, list_ssh_private_keys
 from orchestrator.service import describe_error, retry_phase_for_node
 from pydantic import ValidationError
 
@@ -64,6 +64,15 @@ def test_private_key_file_filter_excludes_public_and_putty_keys(tmp_path) -> Non
 def test_empty_exception_still_produces_a_diagnostic() -> None:
     assert describe_error(NotImplementedError()) == "NotImplementedError"
     assert describe_error(RuntimeError("clone failed")) == "RuntimeError: clone failed"
+
+
+def test_key_browser_lists_paths_without_reading_key_contents(tmp_path) -> None:
+    keys = ["id_ed25519", "work.pem", "work.key", "work.priv", "custom_key"]
+    for name in keys + ["id_ed25519.pub", "work.ppk", "config", "known_hosts", "authorized_keys"]:
+        (tmp_path / name).touch()
+    (tmp_path / "directory").mkdir()
+    assert list_ssh_private_keys(tmp_path) == sorted(str(tmp_path / name) for name in keys)
+    assert list_ssh_private_keys(tmp_path / "missing") == []
 
 
 def test_retry_phase_is_derived_from_the_failed_graph_node() -> None:

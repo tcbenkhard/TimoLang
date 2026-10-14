@@ -40,6 +40,8 @@ export interface GitHubAccount {
   account: string
   ssh_key_path: string
   key_available: boolean
+  pat_configured: boolean
+  username: string
 }
 
 export type DesignProvider = 'codex' | 'claude'

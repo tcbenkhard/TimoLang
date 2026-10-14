@@ -1,3 +1,4 @@
+import json
 import subprocess
 from pathlib import Path
 
@@ -78,8 +79,63 @@ async def test_cli_execution_uses_thread_safe_subprocess_runner(
     monkeypatch.setattr(subprocess, "run", completed)
     provider = CliDesignProvider(pool=object())  # type: ignore[arg-type]
 
-    result = await provider._run(
-        ["codex", "exec"], "prompt", Path.cwd(), DesignProviderName.CODEX
-    )
+    result = await provider._run(["codex", "exec"], "prompt", Path.cwd(), DesignProviderName.CODEX)
 
     assert result == "design"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("stdout", "stderr", "diagnostic"),
+    [
+        (
+            json.dumps({"is_error": True, "result": "Not logged in · Please run /login"}),
+            "",
+            "Not logged in · Please run /login",
+        ),
+        (json.dumps({"errors": ["Maximum turns reached"]}), "", "Maximum turns reached"),
+        ("CLI failed before JSON output", "", "CLI failed before JSON output"),
+        ("stdout detail", "stderr detail", "stderr detail"),
+        ("", "", "no diagnostic was returned"),
+    ],
+)
+async def test_cli_failure_preserves_diagnostic(
+    monkeypatch: pytest.MonkeyPatch, stdout: str, stderr: str, diagnostic: str
+) -> None:
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args=[], returncode=1, stdout=stdout, stderr=stderr
+        ),
+    )
+    provider = CliDesignProvider(pool=object())  # type: ignore[arg-type]
+
+    with pytest.raises(DesignGenerationError) as error:
+        await provider._run(["claude", "-p"], "prompt", Path.cwd(), DesignProviderName.CLAUDE)
+
+    assert str(error.value) == f"Claude CLI exited with code 1: {diagnostic}"
+
+
+@pytest.mark.asyncio
+async def test_claude_error_payload_is_rejected_even_with_successful_exit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=json.dumps({"is_error": True, "errors": ["Maximum turns reached"]}),
+            stderr="",
+        ),
+    )
+    provider = CliDesignProvider(pool=object())  # type: ignore[arg-type]
+
+    with pytest.raises(DesignGenerationError, match="Maximum turns reached"):
+        await provider._run_claude("claude", "prompt", Path.cwd())
+
+
+def test_cli_diagnostic_is_bounded() -> None:
+    assert CliDesignProvider._diagnostic("", json.dumps({"result": "x" * 3_000})) == "x" * 2_000
