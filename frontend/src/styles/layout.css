@@ -30,7 +30,7 @@ header {
 
 .brand svg {
   color: var(--color-accent);
-  fill: rgb(97 232 189 / 0.1);
+  fill: var(--color-accent-glow);
 }
 
 nav {

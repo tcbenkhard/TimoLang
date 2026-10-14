@@ -4,14 +4,13 @@ import type { Workflow } from '../types'
 
 const pollInterval = 3000
 
-/** Polls the workflow list while `enabled`; keeps the last known list otherwise. */
-export function useWorkflows(enabled: boolean) {
+/** Polls the workflow list; the header relies on it for the active count and API status on every route. */
+export function useWorkflows() {
   const [workflows, setWorkflows] = useState<Workflow[]>([])
   const [loaded, setLoaded] = useState(false)
   const [offline, setOffline] = useState(false)
 
   useEffect(() => {
-    if (!enabled) return
     let active = true
     async function load() {
       try {
@@ -28,7 +27,7 @@ export function useWorkflows(enabled: boolean) {
     void load()
     const timer = setInterval(() => void load(), pollInterval)
     return () => { active = false; clearInterval(timer) }
-  }, [enabled])
+  }, [])
 
   return { workflows, loaded, offline }
 }

@@ -46,6 +46,35 @@ describe('Settings', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Unable to remove')
   })
 
+  it('reports a failed account list load next to the list, not the form', async () => {
+    mockSettings({ 'GET /api/settings/github-accounts': () => jsonResponse({ detail: 'Database unavailable' }, 500) })
+    render(<Settings />)
+
+    const list = screen.getByRole('region', { name: 'Configured GitHub accounts' })
+    expect(await within(list).findByRole('alert')).toHaveTextContent('Database unavailable')
+    const form = screen.getByRole('region', { name: 'Add or update account' })
+    expect(within(form).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('does not report a successful save as failed when the list reload fails', async () => {
+    let listCalls = 0
+    mockSettings({
+      'GET /api/settings/github-accounts': () => (listCalls++ === 0 ? jsonResponse(accounts) : jsonResponse({ detail: 'Reload failed' }, 500)),
+      'PUT /api/settings/github-accounts/hubot': { account: 'hubot', ssh_key_path: '/home/me/.ssh/id_hubot', key_available: true },
+    })
+    render(<Settings />)
+    await screen.findByText('octocat')
+
+    await userEvent.type(screen.getByLabelText('GitHub account'), 'hubot')
+    await userEvent.type(screen.getByLabelText('SSH private key path'), '/home/me/.ssh/id_hubot')
+    await userEvent.click(screen.getByRole('button', { name: 'Save account' }))
+
+    const list = screen.getByRole('region', { name: 'Configured GitHub accounts' })
+    expect(await within(list).findByRole('alert')).toHaveTextContent('Reload failed')
+    expect(screen.queryByText(/Unable to save/)).not.toBeInTheDocument()
+    expect(screen.getByLabelText('GitHub account')).toHaveValue('')
+  })
+
   it('has no serious accessibility violations', async () => {
     mockSettings()
     const { container } = render(<Settings />)

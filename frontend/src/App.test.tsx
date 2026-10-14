@@ -69,6 +69,18 @@ describe('App routing', () => {
     renderAt('/')
     expect(await screen.findByText('API offline')).toBeInTheDocument()
   })
+
+  it('keeps the header status current on routes other than the dashboard', async () => {
+    mockBackend()
+    renderAt('/settings')
+    expect(await screen.findByText('1 active')).toBeInTheDocument()
+  })
+
+  it('shows the API offline indicator outside the dashboard', async () => {
+    mockBackend({ 'GET /api/workflows': () => Promise.reject(new TypeError('Failed to fetch')) })
+    renderAt(`/workflows/${workflowId}`)
+    expect(await screen.findByText('API offline')).toBeInTheDocument()
+  })
 })
 
 describe('Dashboard', () => {

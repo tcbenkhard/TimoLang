@@ -12,6 +12,9 @@
   --color-surface-raised: #192231;
   --color-surface-sunken: #090e17;
   --color-header: rgb(9 13 22 / 0.85);
+  --color-hero-start: rgb(24 33 49 / 0.95);
+  --color-hero-end: rgb(15 21 32 / 0.95);
+  --color-overlay: rgb(0 0 0 / 0.6);
 
   /* Borders */
   --color-border: #273145;
@@ -27,8 +30,12 @@
   --color-accent: #61e8bd;
   --color-accent-contrast: #06130e;
   --color-accent-soft: #122c26;
+  --color-accent-strong: #3d8e78;
+  --color-accent-glow: rgb(97 232 189 / 0.1);
   --color-info: #8ab8fa;
   --color-info-soft: #18263a;
+  --color-info-border: #477bb8;
+  --color-info-glow: rgb(138 184 250 / 0.1);
   --color-danger: #ff9aa0;
   --color-danger-soft: #301b23;
   --color-danger-border: #6e3540;

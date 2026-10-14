@@ -28,7 +28,7 @@ function RouteView({ route, workflows }: { route: Route, workflows: ReturnType<t
 
 export default function App() {
   const route = useRoute()
-  const workflows = useWorkflows(route.name === 'dashboard')
+  const workflows = useWorkflows()
   const activeCount = workflows.workflows.filter(workflow => !isTerminal(workflow.phase)).length
 
   useEffect(() => { document.title = `${pageTitles[route.name]} · Relay` }, [route.name])

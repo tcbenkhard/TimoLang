@@ -18,9 +18,13 @@ function mermaidSource(node: HastNode | undefined) {
 }
 
 const components: Components = {
-  a: ({ href, title, children }) => /^https?:/i.test(href ?? '')
-    ? <a href={href} title={title} target="_blank" rel="noopener noreferrer">{children}</a>
-    : <a href={href} title={title}>{children}</a>,
+  a: ({ href, title, children }) => {
+    // safeUrl blanks disallowed URLs; render their text without a broken link.
+    if (!href) return <span title={title}>{children}</span>
+    return /^https?:/i.test(href)
+      ? <a href={href} title={title} target="_blank" rel="noopener noreferrer">{children}</a>
+      : <a href={href} title={title}>{children}</a>
+  },
   pre: ({ node, children }) => {
     const source = mermaidSource(node as HastNode | undefined)
     return source === null ? <pre>{children}</pre> : <MermaidDiagram key={source} source={source} />

@@ -189,7 +189,7 @@ button.primary {
 }
 
 .confirm-dialog::backdrop {
-  background: rgb(0 0 0 / 0.6);
+  background: var(--color-overlay);
 }
 
 .confirm-dialog h2 {

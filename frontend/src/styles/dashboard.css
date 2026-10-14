@@ -27,7 +27,7 @@
   padding: var(--space-5);
   border: 1px solid var(--color-border-strong);
   border-radius: 14px;
-  background: linear-gradient(135deg, rgb(24 33 49 / 0.95), rgb(15 21 32 / 0.95));
+  background: linear-gradient(135deg, var(--color-hero-start), var(--color-hero-end));
   box-shadow: var(--shadow-raised);
 }
 

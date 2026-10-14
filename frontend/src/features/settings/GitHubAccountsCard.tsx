@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { FolderOpen, Trash2 } from 'lucide-react'
-import { api } from '../../api'
+import { api, errorMessage } from '../../api'
 import { Badge } from '../../components/Badge'
 import { ConfirmDialog, type Confirmation } from '../../components/ConfirmDialog'
 import { ErrorMessage } from '../../components/ErrorMessage'
@@ -11,23 +11,26 @@ export function GitHubAccountsCard() {
   const [accounts, setAccounts] = useState<GitHubAccount[]>([])
   const [account, setAccount] = useState('')
   const [keyPath, setKeyPath] = useState('')
+  const [loadError, setLoadError] = useState('')
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const { pending, error, run } = useAsyncAction()
 
-  const loadAccounts = useCallback(async () => setAccounts(await api.githubAccounts()), [])
+  // The list has its own error state so a failed reload is not reported as a failed save or removal.
+  const loadAccounts = useCallback(() => api.githubAccounts().then(
+    next => { setAccounts(next); setLoadError('') },
+    problem => setLoadError(errorMessage(problem, 'Unable to load GitHub accounts.')),
+  ), [])
 
-  useEffect(() => {
-    void run(loadAccounts, 'Unable to load GitHub accounts.')
-  }, [run, loadAccounts])
+  useEffect(() => { void loadAccounts() }, [loadAccounts])
 
   async function save(event: FormEvent) {
     event.preventDefault()
-    await run(async () => {
+    const saved = await run(async () => {
       await api.saveGithubAccount(account.trim(), keyPath.trim())
       setAccount('')
       setKeyPath('')
-      await loadAccounts()
     }, 'Unable to save the account.')
+    if (saved) await loadAccounts()
   }
 
   function browse() {
@@ -37,15 +40,17 @@ export function GitHubAccountsCard() {
     }, 'Unable to open the file browser.')
   }
 
+  async function removeAccount(name: string) {
+    const removed = await run(() => api.deleteGithubAccount(name), 'Unable to remove the account.')
+    if (removed) await loadAccounts()
+  }
+
   function confirmRemoval(name: string) {
     setConfirmation({
       title: `Remove ${name}?`,
       message: 'Relay will no longer use this account. The SSH key file itself is not deleted.',
       confirmLabel: 'Remove account',
-      onConfirm: () => void run(async () => {
-        await api.deleteGithubAccount(name)
-        await loadAccounts()
-      }, 'Unable to remove the account.'),
+      onConfirm: () => void removeAccount(name),
     })
   }
 
@@ -68,6 +73,7 @@ export function GitHubAccountsCard() {
       <ErrorMessage message={error} />
     </section>
     <section className="account-list" aria-label="Configured GitHub accounts">
+      <ErrorMessage message={loadError} />
       {accounts.map(item => <div className="card account-row" key={item.account}>
         <div><strong>{item.account}</strong><code>{item.ssh_key_path}</code></div>
         <div className="account-actions">
@@ -76,7 +82,7 @@ export function GitHubAccountsCard() {
             <Trash2 size={16} aria-hidden="true" /></button>
         </div>
       </div>)}
-      {accounts.length === 0 && <div className="empty"><p>No GitHub accounts configured.</p></div>}
+      {accounts.length === 0 && !loadError && <div className="empty"><p>No GitHub accounts configured.</p></div>}
     </section>
     <ConfirmDialog confirmation={confirmation} onClose={() => setConfirmation(null)} />
   </>

@@ -48,8 +48,8 @@ describe('MarkdownDocument', () => {
     render(<MarkdownDocument>
       {'[bad](javascript:alert(1)) [data](data:text/html,x) [site](https://example.com) [anchor](#section)'}
     </MarkdownDocument>)
-    expect(screen.getByText('bad').getAttribute('href') ?? '').toBe('')
-    expect(screen.getByText('data').getAttribute('href') ?? '').toBe('')
+    expect(screen.getByText('bad').closest('a')).toBeNull()
+    expect(screen.getByText('data').closest('a')).toBeNull()
     const external = screen.getByRole('link', { name: 'site' })
     expect(external).toHaveAttribute('rel', 'noopener noreferrer')
     expect(external).toHaveAttribute('target', '_blank')

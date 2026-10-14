@@ -135,7 +135,7 @@
 }
 
 .workflow-step.complete:not(:last-child)::before {
-  background: #3d8e78;
+  background: var(--color-accent-strong);
 }
 
 .step-marker {
@@ -157,10 +157,10 @@
 }
 
 .workflow-step.current .step-marker {
-  border-color: #477bb8;
+  border-color: var(--color-info-border);
   background: var(--color-info-soft);
   color: var(--color-info);
-  box-shadow: 0 0 0 4px rgb(138 184 250 / 0.1);
+  box-shadow: 0 0 0 4px var(--color-info-glow);
 }
 
 .workflow-step.stopped .step-marker {

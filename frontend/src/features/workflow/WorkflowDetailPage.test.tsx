@@ -127,6 +127,17 @@ describe('WorkflowDetailPage actions', () => {
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({ action: 'reject' })
   })
 
+  it('shows the API error when rejecting a design fails and re-enables actions', async () => {
+    mockFetch({ [`POST ${base}/design-review`]: failing })
+    await renderDetail(makeWorkflow({ phase: 'awaiting_design_approval' }))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reject' }))
+    await confirmDialog(/Reject design/)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Workflow is not awaiting design approval')
+    expect(screen.getByRole('button', { name: 'Reject' })).toBeEnabled()
+  })
+
   it('disables the pull request actions while a request is pending', async () => {
     let resolve: (response: Response) => void = () => {}
     mockFetch({ [`POST ${base}/pull-request`]: () => new Promise<Response>(done => { resolve = done }) })
