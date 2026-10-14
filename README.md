@@ -112,7 +112,7 @@ Design revision and PR feedback paths are available directly in the UI.
 pytest
 ruff check backend
 mypy
-cd frontend && npm run build && npm run lint
+cd frontend && npm run build && npm run lint && npm test
 ```
 
 See [docs/architecture.md](docs/architecture.md) for persistence, trust boundaries, and extension points.

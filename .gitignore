@@ -13,3 +13,7 @@ artifacts/
 .idea/
 */dist/
 */node_modules/
+*.tsbuildinfo
+*.iml
+frontend/vite.config.js
+frontend/vite.config.d.ts
