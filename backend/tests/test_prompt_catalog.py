@@ -65,6 +65,11 @@ def test_unknown_and_path_like_prompt_ids_are_rejected() -> None:
     [
         ("{{base_branch}} {{approved_design}} {{unknown}}", "unexpected placeholders"),
         ("{{base_branch}} {{approved_design}} {{bad-token}}", "malformed placeholder"),
+        ("{{{base_branch}}} {{approved_design}}", "malformed placeholder"),
+        ("{{{base_branch}} {{approved_design}}", "malformed placeholder"),
+        ("{{base_branch}}} {{approved_design}}", "malformed placeholder"),
+        ("{{base_branch}} {{approved_design}", "malformed placeholder"),
+        ("{{base_branch}} approved_design}}", "malformed placeholder"),
         ("{{base_branch}}", "missing placeholders"),
         (
             "{{base_branch}} {{approved_design}} {{approved_design}}",

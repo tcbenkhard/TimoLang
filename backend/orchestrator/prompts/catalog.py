@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import re
+from collections import Counter
 from dataclasses import dataclass
 from enum import StrEnum
 from importlib import resources
@@ -46,7 +46,14 @@ _PROMPTS = {
         "review.md", frozenset({"base_branch", "approved_design"})
     ),
 }
-_PLACEHOLDER = re.compile(r"{{([a-z][a-z0-9_]*)}}")
+_PLACEHOLDER_NAME_CHARACTERS = frozenset("abcdefghijklmnopqrstuvwxyz0123456789_")
+
+
+@dataclass(frozen=True)
+class _Placeholder:
+    start: int
+    end: int
+    name: str
 
 
 def render_prompt(prompt_id: PromptId, values: Mapping[str, object]) -> str:
@@ -69,8 +76,15 @@ def render_prompt(prompt_id: PromptId, values: Mapping[str, object]) -> str:
             problems.append(f"unexpected values: {', '.join(sorted(unexpected))}")
         raise PromptError(f"Prompt '{prompt_id.value}' has invalid inputs ({'; '.join(problems)})")
 
-    rendered_values = {name: str(values[name]) for name in placeholders}
-    return _PLACEHOLDER.sub(lambda match: rendered_values[match.group(1)], template)
+    rendered_values = {name: str(values[name]) for name in spec.placeholders}
+    rendered_parts: list[str] = []
+    previous_end = 0
+    for placeholder in placeholders:
+        rendered_parts.append(template[previous_end : placeholder.start])
+        rendered_parts.append(rendered_values[placeholder.name])
+        previous_end = placeholder.end
+    rendered_parts.append(template[previous_end:])
+    return "".join(rendered_parts)
 
 
 def _load_template(prompt_id: PromptId, spec: PromptSpec) -> str:
@@ -83,18 +97,23 @@ def _load_template(prompt_id: PromptId, spec: PromptSpec) -> str:
         raise PromptError(message) from error
 
 
-def _validate_template(prompt_id: PromptId, template: str, spec: PromptSpec) -> frozenset[str]:
-    matches = tuple(_PLACEHOLDER.finditer(template))
-    found = frozenset(match.group(1) for match in matches)
-    text_without_tokens = _PLACEHOLDER.sub("", template)
-    malformed = "{{" in text_without_tokens or "}}" in text_without_tokens
+def _validate_template(
+    prompt_id: PromptId, template: str, spec: PromptSpec
+) -> tuple[_Placeholder, ...]:
+    try:
+        placeholders = _parse_placeholders(template)
+    except ValueError as error:
+        raise PromptError(
+            f"Prompt '{prompt_id.value}' template is invalid (malformed placeholder)"
+        ) from error
+
+    counts = Counter(placeholder.name for placeholder in placeholders)
+    found = frozenset(counts)
     missing = spec.placeholders - found
     unexpected = found - spec.placeholders
-    duplicates = sorted(name for name in found if template.count(f"{{{{{name}}}}}") != 1)
-    if malformed or missing or unexpected or duplicates:
+    duplicates = sorted(name for name, count in counts.items() if count != 1)
+    if missing or unexpected or duplicates:
         problems = []
-        if malformed:
-            problems.append("malformed placeholder")
         if missing:
             problems.append(f"missing placeholders: {', '.join(sorted(missing))}")
         if unexpected:
@@ -102,7 +121,37 @@ def _validate_template(prompt_id: PromptId, template: str, spec: PromptSpec) -> 
         if duplicates:
             problems.append(f"duplicate placeholders: {', '.join(duplicates)}")
         raise PromptError(f"Prompt '{prompt_id.value}' template is invalid ({'; '.join(problems)})")
-    return found
+    return placeholders
+
+
+def _parse_placeholders(template: str) -> tuple[_Placeholder, ...]:
+    """Parse exact ``{{name}}`` tokens while allowing ordinary single braces."""
+    placeholders: list[_Placeholder] = []
+    index = 0
+    while index < len(template):
+        if template.startswith("}}", index):
+            raise ValueError("closing delimiter without an opening delimiter")
+        if not template.startswith("{{", index):
+            index += 1
+            continue
+
+        start = index
+        index += 2
+        name_start = index
+        if index >= len(template) or not "a" <= template[index] <= "z":
+            raise ValueError("placeholder name must start with a lowercase letter")
+        index += 1
+        while index < len(template) and template[index] in _PLACEHOLDER_NAME_CHARACTERS:
+            index += 1
+        name = template[name_start:index]
+        if not template.startswith("}}", index):
+            raise ValueError("placeholder is missing its closing delimiter")
+        index += 2
+        if index < len(template) and template[index] == "}":
+            raise ValueError("placeholder has an extra closing brace")
+        placeholders.append(_Placeholder(start=start, end=index, name=name))
+
+    return tuple(placeholders)
 
 
 def _safe_identifier(value: object) -> str:
