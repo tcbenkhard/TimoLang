@@ -1,0 +1,302 @@
+.card {
+  padding: 22px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+input,
+textarea {
+  padding: 13px 15px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+button.primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-weight: 700;
+}
+
+.field-label {
+  display: block;
+  margin-top: var(--space-4);
+  color: var(--color-text-muted);
+  font: 500 var(--text-xs) var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.input-help {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-subtle);
+  font-size: var(--text-xs);
+}
+
+.form-error {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 10px 0 0;
+  color: var(--color-danger);
+  font-size: var(--text-sm);
+}
+
+/* Status badge */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px var(--space-2);
+  border-radius: 5px;
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  font: 500 var(--text-xs) var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.status span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status.success {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.status.danger {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.status.warning {
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+}
+
+.status.active {
+  color: var(--color-info);
+  background: var(--color-info-soft);
+}
+
+/* Toggle group */
+.toggle-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  padding: 3px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.toggle-group button {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: 500 var(--text-xs) var(--font-mono);
+  text-transform: uppercase;
+}
+
+.toggle-group button[aria-pressed='true'] {
+  background: var(--color-surface-raised);
+  color: var(--color-accent);
+}
+
+/* Action rows */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: var(--space-3);
+}
+
+.actions button {
+  padding: 10px 14px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.actions button.primary {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.actions .danger-button {
+  color: var(--color-danger);
+}
+
+/* Empty states */
+.empty {
+  padding: 54px var(--space-5);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.empty h3 {
+  margin: var(--space-4) 0 6px;
+  color: var(--color-text);
+  font-size: var(--text-lg);
+}
+
+.empty p {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.empty-icon {
+  width: 52px;
+  height: 52px;
+  margin: auto;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-surface-raised);
+  color: var(--color-accent);
+}
+
+/* Confirmation dialog */
+.confirm-dialog {
+  max-width: 440px;
+  padding: var(--space-6);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-raised);
+}
+
+.confirm-dialog::backdrop {
+  background: var(--color-overlay);
+}
+
+.confirm-dialog h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+}
+
+.confirm-dialog p {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.confirm-dialog .actions {
+  justify-content: flex-end;
+}
+
+/* Rendered Markdown documents */
+.document {
+  margin: var(--space-5) 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-md);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.document h1 {
+  color: var(--color-text);
+  font-size: var(--text-2xl);
+}
+
+.document h2 {
+  margin-top: 27px;
+  color: var(--color-text);
+  font-size: var(--text-lg);
+}
+
+.document h3 {
+  color: var(--color-text);
+  font-size: var(--text-md);
+}
+
+.document code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.document pre {
+  padding: var(--space-3) var(--space-4);
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.document table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.document th,
+.document td {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.document th {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.document .diagram,
+.document .diagram-source {
+  margin: var(--space-4) 0;
+}
+
+.document .diagram {
+  overflow-x: auto;
+  text-align: center;
+}
+
+.document .diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.document .diagram-source figcaption {
+  margin-bottom: var(--space-2);
+  color: var(--color-warning);
+  font-size: var(--text-sm);
+}
+
+.document-head {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-subtle);
+  font: 500 var(--text-xs) var(--font-mono);
+  text-transform: uppercase;
+}
+
+.document-head b {
+  color: var(--color-accent);
+}
