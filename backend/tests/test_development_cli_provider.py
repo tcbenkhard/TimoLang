@@ -54,6 +54,8 @@ def test_review_prompt_covers_requested_quality_checks() -> None:
     assert "anti-patterns and code smells" in prompt
     assert "DRY, SOLID, and KISS" in prompt
     assert "Do not edit files" in prompt
+    assert "`main`" in prompt
+    assert "## Approved design" in prompt
 
 
 def test_review_response_is_parsed_from_json_fence() -> None:

@@ -36,6 +36,10 @@ def test_design_prompt_requires_functional_and_technical_analysis() -> None:
     assert "#### New flow" in prompt
     assert "fenced `mermaid` code blocks" in prompt
     assert "Active filters are respected" in prompt
+    assert "## 1. Summary" in prompt
+    assert "## 7. Open questions" in prompt
+    assert "Add export" in prompt
+    assert "acme/reports" in prompt
 
 
 def test_design_validation_rejects_incomplete_ai_output() -> None:
